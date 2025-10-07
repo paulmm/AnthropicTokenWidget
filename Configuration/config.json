@@ -1,0 +1,15 @@
+{
+  "refreshInterval": 30,
+  "alertThresholds": {
+    "warning": 0.75,
+    "critical": 0.90
+  },
+  "predictionsEnabled": true,
+  "notificationsEnabled": true,
+  "theme": "auto",
+  "defaultView": "tachometer",
+  "apiEndpoint": "https://api.anthropic.com/v1",
+  "widgetRefreshInterval": 60,
+  "historyRetentionDays": 30,
+  "debugMode": false
+}

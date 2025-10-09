@@ -174,8 +174,8 @@ public class ClaudeCodeDataService: ObservableObject {
                     tokensUsed: totalTokens,
                     windowStart: currentWindowStart,
                     windowEnd: windowEnd,
-                    maxTokens: 100000, // Default tier 2 limit
-                    tier: .tier2,
+                    maxTokens: 88000, // Default Max5 limit
+                    tier: .max5,
                     modelType: mostUsedModel
                 )
 
@@ -189,10 +189,9 @@ public class ClaudeCodeDataService: ObservableObject {
     }
 
     /// Calculate total usage for the current 5-hour window
-    public func getCurrentWindowUsage(_ entries: [ClaudeUsageEntry]) -> TokenUsage {
+    public func getCurrentWindowUsage(_ entries: [ClaudeUsageEntry], tier: AccountTier = .custom, p90Limit: Int? = nil) -> TokenUsage {
         let now = Date()
         let fiveHoursAgo = now.addingTimeInterval(-5 * 3600)
-        let fiveHoursFromNow = now.addingTimeInterval(5 * 3600)
 
         let recentEntries = entries.filter { $0.timestamp >= fiveHoursAgo }
 
@@ -203,13 +202,38 @@ public class ClaudeCodeDataService: ObservableObject {
         let modelCounts = Dictionary(grouping: recentEntries, by: { $0.modelType })
         let mostUsedModel = modelCounts.max { $0.value.count < $1.value.count }?.key
 
+        // The window end should be 5 hours from the OLDEST token in the current window
+        // This is when those tokens will expire from the rolling window
+        let actualWindowStart: Date
+        let actualWindowEnd: Date
+
+        if let oldestEntry = recentEntries.min(by: { $0.timestamp < $1.timestamp }) {
+            // Window resets 5 hours after the oldest token
+            actualWindowStart = oldestEntry.timestamp
+            actualWindowEnd = oldestEntry.timestamp.addingTimeInterval(5 * 3600)
+        } else {
+            // No entries, use default window
+            actualWindowStart = fiveHoursAgo
+            actualWindowEnd = now
+        }
+
+        // Determine max tokens based on tier
+        let maxTokens: Int
+        if tier == .custom, let p90 = p90Limit {
+            maxTokens = p90
+        } else if tier == .custom {
+            maxTokens = 88_000 // Default to Max5 level for custom
+        } else {
+            maxTokens = tier.maxTokensPer5Hours
+        }
+
         return TokenUsage(
             timestamp: now,
             tokensUsed: totalTokens,
-            windowStart: fiveHoursAgo,
-            windowEnd: fiveHoursFromNow,
-            maxTokens: 100000, // Tier 2 default
-            tier: .tier2,
+            windowStart: actualWindowStart,
+            windowEnd: actualWindowEnd,
+            maxTokens: maxTokens,
+            tier: tier,
             modelType: mostUsedModel
         )
     }

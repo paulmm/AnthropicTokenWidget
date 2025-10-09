@@ -61,23 +61,19 @@ struct DashboardView: View {
     }
     
     private func mainGaugeCard(usage: TokenUsage) -> some View {
-        TachometerView(usage: usage, size: .systemLarge)
+        HStack(spacing: 20) {
+            // Left: Burn Rate Gauge
+            BurnRateGauge(
+                burnRate: tokenMonitor.calculateBurnRate(over: 300),
+                safeRate: tokenMonitor.currentPrediction?.safeRate ?? 200
+            )
             .frame(height: 300)
-            .padding(.vertical, 20)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(LinearGradient(
-                        colors: [Color(hex: "#1E293B"), Color(hex: "#0F172A")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
+
+            // Right: Usage Tachometer
+            TachometerView(usage: usage, size: .systemLarge)
+                .frame(height: 300)
+        }
+        .padding(20)
     }
     
     private func predictionCard(prediction: Prediction) -> some View {
@@ -226,6 +222,8 @@ struct DashboardView: View {
         refreshing = true
         Task {
             await tokenMonitor.refreshUsage()
+            // Add small delay so user can see the refresh happened
+            try? await Task.sleep(nanoseconds: 500_000_000)
             await MainActor.run {
                 refreshing = false
             }

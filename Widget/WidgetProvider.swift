@@ -64,8 +64,8 @@ struct TachometerProvider: TimelineProvider {
             tokensUsed: 45000,
             windowStart: Date().addingTimeInterval(-7200),
             windowEnd: Date().addingTimeInterval(10800),
-            maxTokens: 100000,
-            tier: .tier2,
+            maxTokens: 88000,
+            tier: .max5,
             modelType: .sonnet35
         )
     }
@@ -158,8 +158,8 @@ struct DashboardProvider: TimelineProvider {
             tokensUsed: 65000,
             windowStart: Date().addingTimeInterval(-10800),
             windowEnd: Date().addingTimeInterval(7200),
-            maxTokens: 100000,
-            tier: .tier2,
+            maxTokens: 88000,
+            tier: .max5,
             modelType: .sonnet35
         )
     }
@@ -173,8 +173,8 @@ struct DashboardProvider: TimelineProvider {
                 tokensUsed: Int.random(in: 1000...8000),
                 windowStart: timestamp.addingTimeInterval(-7200),
                 windowEnd: timestamp.addingTimeInterval(10800),
-                maxTokens: 100000,
-                tier: .tier2,
+                maxTokens: 88000,
+                tier: .max5,
                 modelType: ModelType.allCases.randomElement()
             ))
         }

@@ -185,7 +185,7 @@ private struct UsageResponse: Codable {
             windowStart: windowStart,
             windowEnd: windowEnd,
             maxTokens: maxTokens,
-            tier: AccountTier(rawValue: tier.lowercased()) ?? .free,
+            tier: AccountTier(rawValue: tier.lowercased()) ?? .pro,
             modelType: modelType.flatMap { ModelType(rawValue: $0) }
         )
     }
@@ -219,8 +219,8 @@ public class MockAnthropicAPIService: AnthropicAPIServiceProtocol {
             tokensUsed: Int.random(in: 10000...80000),
             windowStart: windowStart,
             windowEnd: windowEnd,
-            maxTokens: 100000,
-            tier: .tier2,
+            maxTokens: 88000,
+            tier: .max5,
             modelType: .sonnet35
         )
     }
@@ -240,8 +240,8 @@ public class MockAnthropicAPIService: AnthropicAPIServiceProtocol {
                 tokensUsed: Int.random(in: 5000...50000),
                 windowStart: windowStart,
                 windowEnd: windowEnd,
-                maxTokens: 100000,
-                tier: .tier2,
+                maxTokens: 88000,
+                tier: .max5,
                 modelType: ModelType.allCases.randomElement()
             ))
             

@@ -1,44 +1,47 @@
 import Foundation
 
 public enum AccountTier: String, Codable, CaseIterable {
-    case free = "free"
-    case tier1 = "tier1"
-    case tier2 = "tier2"
-    case tier3 = "tier3"
-    case tier4 = "tier4"
-    case scale = "scale"
-    
+    case custom = "custom"
+    case pro = "pro"
+    case max5 = "max5"
+    case max20 = "max20"
+
     var maxTokensPer5Hours: Int {
         switch self {
-        case .free:
-            return 25_000
-        case .tier1:
-            return 50_000
-        case .tier2:
-            return 100_000
-        case .tier3:
-            return 200_000
-        case .tier4:
-            return 400_000
-        case .scale:
-            return 800_000
+        case .custom:
+            return 0 // P90 auto-detect - will be calculated dynamically
+        case .pro:
+            return 19_000
+        case .max5:
+            return 88_000
+        case .max20:
+            return 220_000
         }
     }
-    
+
     var displayName: String {
         switch self {
-        case .free:
-            return "Free"
-        case .tier1:
-            return "Tier 1"
-        case .tier2:
-            return "Tier 2"
-        case .tier3:
-            return "Tier 3"
-        case .tier4:
-            return "Tier 4"
-        case .scale:
-            return "Scale"
+        case .custom:
+            return "Custom (Auto-detect)"
+        case .pro:
+            return "Claude Pro"
+        case .max5:
+            return "Claude Max5"
+        case .max20:
+            return "Claude Max20"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .custom:
+            return "P90 intelligent limit detection"
+        case .pro:
+            return "~19,000 tokens/5h"
+        case .max5:
+            return "~88,000 tokens/5h"
+        case .max20:
+            return "~220,000 tokens/5h"
         }
     }
 }

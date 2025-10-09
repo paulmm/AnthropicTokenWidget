@@ -78,9 +78,9 @@ public class AuthenticationManager: NSObject, ObservableObject {
         
         Task { @MainActor in
             do {
-                let tierString = components.queryItems?.first(where: { $0.name == "tier" })?.value ?? "free"
-                let tier = AccountTier(rawValue: tierString) ?? .free
-                
+                let tierString = components.queryItems?.first(where: { $0.name == "tier" })?.value ?? "pro"
+                let tier = AccountTier(rawValue: tierString) ?? .pro
+
                 let account = Account(
                     email: email,
                     apiKey: token,
@@ -111,11 +111,11 @@ public class AuthenticationManager: NSObject, ObservableObject {
             ])
         }
 
-        // Create account with tier2 as default for demo
+        // Create account with max5 as default for demo
         let account = Account(
             email: email,
             apiKey: apiKey,
-            tier: .tier2
+            tier: .max5
         )
 
         try await addAccount(account)

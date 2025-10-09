@@ -2,7 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var tokenMonitor: TokenUsageMonitor
-    @AppStorage("refreshInterval") private var refreshInterval: Double = 30
+    @AppStorage("accountTier") private var accountTier: String = "custom"
+    @AppStorage("refreshInterval") private var refreshInterval: Double = 15
     @AppStorage("warningThreshold") private var warningThreshold: Double = 0.75
     @AppStorage("criticalThreshold") private var criticalThreshold: Double = 0.90
     @AppStorage("predictionsEnabled") private var predictionsEnabled = true
@@ -10,6 +11,10 @@ struct SettingsView: View {
     @AppStorage("theme") private var theme: Theme = .auto
     @State private var showingDataExport = false
     @State private var showingClearDataAlert = false
+
+    private var selectedTier: AccountTier {
+        AccountTier(rawValue: accountTier) ?? .custom
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -53,18 +58,72 @@ struct SettingsView: View {
     
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Data Source")
+            Text("Account")
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    Image(systemName: "folder.fill")
+                    Image(systemName: "person.crop.circle.fill")
                         .font(.title2)
                         .foregroundColor(.blue)
                         .frame(width: 32)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Claude Code Local Files")
+                        Text("Account Tier")
+                            .font(.subheadline.bold())
+                        Text("Set your Anthropic API tier for accurate limits")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Plan", selection: $accountTier) {
+                        ForEach(AccountTier.allCases, id: \.rawValue) { tier in
+                            Text(tier.displayName).tag(tier.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: accountTier) { _ in
+                        // Trigger data refresh with new tier
+                        Task {
+                            await tokenMonitor.refreshUsage()
+                        }
+                    }
+
+                    Text(selectedTier.description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    if selectedTier == .custom {
+                        if let limit = tokenMonitor.currentUsage?.maxTokens {
+                            HStack {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .foregroundColor(.blue)
+                                    .font(.caption)
+                                Text("Detected limit: \(limit.formatted()) tokens/5h")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                }
+
+                Divider()
+
+                HStack(spacing: 12) {
+                    Image(systemName: "folder.fill")
+                        .font(.title2)
+                        .foregroundColor(.green)
+                        .frame(width: 32)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Data Source")
                             .font(.subheadline.bold())
                         Text("~/.claude/projects")
                             .font(.caption)
@@ -120,9 +179,16 @@ struct SettingsView: View {
                             .foregroundColor(.blue)
                     }
 
-                    Slider(value: $refreshInterval, in: 30...300, step: 30)
+                    Slider(value: $refreshInterval, in: 10...120, step: 5)
+                        .onChange(of: refreshInterval) { _ in
+                            // Restart monitoring with new interval
+                            Task {
+                                await tokenMonitor.stopMonitoring()
+                                await tokenMonitor.startMonitoring()
+                            }
+                        }
 
-                    Text("Data refreshes automatically every \(Int(refreshInterval)) seconds")
+                    Text("Real-time updates every \(Int(refreshInterval)) seconds (recommended: 10-20s)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

@@ -11,12 +11,26 @@ public class TokenUsageMonitor: ObservableObject {
     @Published public var currentPrediction: Prediction?
     @Published public var isMonitoring = false
     @Published public var lastError: Error?
+    @Published public var realtimeBurnRate: Double = 0 // Tokens per minute
 
     private var apiService: AnthropicAPIServiceProtocol
     private let claudeDataService = ClaudeCodeDataService()
     private var refreshTimer: Timer?
-    private var refreshInterval: TimeInterval = 60 // Check for new data every minute
+    private var refreshInterval: TimeInterval = 15 // Default: check for new data every 15 seconds
     private let predictionEngine = PredictionEngine()
+
+    // Store raw entries for real-time burn rate calculation
+    private var rawEntries: [ClaudeUsageEntry] = []
+
+    // Read refresh interval from settings
+    private func getRefreshInterval() -> TimeInterval {
+        let savedInterval = UserDefaults.standard.double(forKey: "refreshInterval")
+        // Default to 15 seconds for real-time feel, min 10 seconds
+        if savedInterval > 0 {
+            return max(savedInterval, 10)
+        }
+        return 15
+    }
 
     private init() {
         self.apiService = MockAnthropicAPIService()
@@ -31,15 +45,25 @@ public class TokenUsageMonitor: ObservableObject {
             throw ClaudeDataError.noDataFound
         }
 
-        // Get current window usage
-        let current = claudeDataService.getCurrentWindowUsage(entries)
-
-        // Aggregate by 5-hour windows
+        // Aggregate by 5-hour windows first to build history
         let aggregated = claudeDataService.aggregateByTimeWindow(entries, windowHours: 5)
+
+        // Get tier from settings
+        let tier = getUserTier()
+
+        // Calculate P90 limit if using custom tier
+        await MainActor.run {
+            self.rawEntries = entries
+            self.usageHistory = aggregated
+            self.realtimeBurnRate = calculateRealtimeBurnRate(from: entries)
+        }
+        let p90Limit = tier == .custom ? calculateP90Limit() : nil
+
+        // Get current window usage with P90 limit
+        let current = claudeDataService.getCurrentWindowUsage(entries, tier: tier, p90Limit: p90Limit)
 
         await MainActor.run {
             self.currentUsage = current
-            self.usageHistory = aggregated
             self.currentPrediction = generatePrediction(for: current)
             self.isMonitoring = true
         }
@@ -54,20 +78,32 @@ public class TokenUsageMonitor: ObservableObject {
     }
     
     public func startMonitoring() {
-        guard refreshTimer == nil else { return }
+        // Stop any existing timer first
+        refreshTimer?.invalidate()
+        refreshTimer = nil
 
         isMonitoring = true
-        refreshTimer?.invalidate()
+
+        // Get refresh interval from settings
+        let interval = getRefreshInterval()
+
+        print("📊 Starting monitoring with \(interval)s refresh interval")
 
         // Start periodic refresh
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
             Task { @MainActor in
                 await self.refreshUsage()
             }
         }
+
+        // Fire immediately for instant update
+        Task { @MainActor in
+            await self.refreshUsage()
+        }
     }
 
     public func stopMonitoring() {
+        print("⏸️ Stopping monitoring")
         isMonitoring = false
         refreshTimer?.invalidate()
         refreshTimer = nil
@@ -83,14 +119,26 @@ public class TokenUsageMonitor: ObservableObject {
                 return
             }
 
-            // Get current window usage
-            let current = claudeDataService.getCurrentWindowUsage(entries)
+            // Store raw entries for real-time calculations
+            rawEntries = entries
 
-            // Aggregate by 5-hour windows
+            // Calculate real-time burn rate
+            realtimeBurnRate = calculateRealtimeBurnRate(from: entries)
+
+            // Aggregate by 5-hour windows first
             let aggregated = claudeDataService.aggregateByTimeWindow(entries, windowHours: 5)
+            usageHistory = aggregated
+
+            // Get tier from settings
+            let tier = getUserTier()
+
+            // Calculate P90 limit if using custom tier
+            let p90Limit = tier == .custom ? calculateP90Limit() : nil
+
+            // Get current window usage with P90 limit
+            let current = claudeDataService.getCurrentWindowUsage(entries, tier: tier, p90Limit: p90Limit)
 
             currentUsage = current
-            usageHistory = aggregated
             currentPrediction = generatePrediction(for: current)
 
             saveHistoricalData()
@@ -101,6 +149,34 @@ public class TokenUsageMonitor: ObservableObject {
             lastError = error
             print("Failed to refresh usage: \(error)")
         }
+    }
+
+    private func getUserTier() -> AccountTier {
+        if let tierString = UserDefaults.standard.string(forKey: "accountTier"),
+           let tier = AccountTier(rawValue: tierString) {
+            return tier
+        }
+        return .custom // Default to custom (auto-detect)
+    }
+
+    /// Calculate P90 (90th percentile) usage from history for custom tier
+    public func calculateP90Limit() -> Int {
+        guard !usageHistory.isEmpty else {
+            return 88_000 // Default to Max5 level if no history
+        }
+
+        // Get all token usage values
+        let usageValues = usageHistory.map { $0.tokensUsed }.sorted()
+
+        // Calculate 90th percentile
+        let p90Index = Int(Double(usageValues.count) * 0.9)
+        let p90Value = usageValues[min(p90Index, usageValues.count - 1)]
+
+        // Add 20% buffer for safety
+        let limitWithBuffer = Int(Double(p90Value) * 1.2)
+
+        // Clamp between reasonable bounds
+        return max(19_000, min(limitWithBuffer, 220_000))
     }
     
     public func generatePrediction(for usage: TokenUsage) -> Prediction {
@@ -144,20 +220,36 @@ public class TokenUsageMonitor: ObservableObject {
         }
     }
     
+    /// Calculate real-time burn rate from raw entries
+    private func calculateRealtimeBurnRate(from entries: [ClaudeUsageEntry]) -> Double {
+        // Look at last 5 minutes of actual usage
+        let fiveMinutesAgo = Date().addingTimeInterval(-300)
+        let recentEntries = entries.filter { $0.timestamp >= fiveMinutesAgo }
+
+        guard !recentEntries.isEmpty else { return 0 }
+
+        // Sum all tokens in the last 5 minutes
+        let totalTokens = recentEntries.reduce(0) { $0 + $1.totalTokens }
+
+        // Find actual time span
+        if let oldest = recentEntries.min(by: { $0.timestamp < $1.timestamp }),
+           let newest = recentEntries.max(by: { $0.timestamp < $1.timestamp }) {
+            let timeSpan = newest.timestamp.timeIntervalSince(oldest.timestamp) / 60.0 // minutes
+
+            // If we have meaningful time span, calculate rate
+            if timeSpan > 0.1 { // At least 6 seconds
+                return Double(totalTokens) / timeSpan
+            }
+        }
+
+        // If less than 5 minutes of data, extrapolate
+        let actualTimeSpan = Date().timeIntervalSince(recentEntries[0].timestamp) / 60.0
+        return actualTimeSpan > 0 ? Double(totalTokens) / actualTimeSpan : 0
+    }
+
+    /// Legacy burn rate calculation for backward compatibility
     public func calculateBurnRate(over interval: TimeInterval = 300) -> Double {
-        guard usageHistory.count >= 2 else { return 0 }
-        
-        let cutoff = Date().addingTimeInterval(-interval)
-        let recentUsage = usageHistory.filter { $0.timestamp > cutoff }
-        
-        guard recentUsage.count >= 2,
-              let first = recentUsage.first,
-              let last = recentUsage.last else { return 0 }
-        
-        let tokenDiff = last.tokensUsed - first.tokensUsed
-        let timeDiff = last.timestamp.timeIntervalSince(first.timestamp) / 60
-        
-        return timeDiff > 0 ? Double(tokenDiff) / timeDiff : 0
+        return realtimeBurnRate
     }
     
     public func getUsageByTimeRange(_ range: GraphTimeRange) -> [TokenUsage] {

@@ -39,8 +39,6 @@ struct DashboardView: View {
                             predictionCard(prediction: prediction)
                         }
 
-                        quickStatsGrid(usage: usage)
-
                         recentActivityCard()
 
                         modelBreakdownCard()

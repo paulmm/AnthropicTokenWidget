@@ -215,6 +215,10 @@ public struct BurnRateGauge: View {
             Text("burn rate")
                 .font(.system(size: width * 0.04, weight: .regular, design: .rounded))
                 .foregroundColor(.white.opacity(0.4))
+
+            Text("(30s window)")
+                .font(.system(size: width * 0.035, weight: .regular, design: .rounded))
+                .foregroundColor(.white.opacity(0.3))
         }
         .offset(y: width * 0.15)
     }

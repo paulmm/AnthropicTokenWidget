@@ -222,29 +222,35 @@ public class TokenUsageMonitor: ObservableObject {
     
     /// Calculate real-time burn rate from raw entries
     private func calculateRealtimeBurnRate(from entries: [ClaudeUsageEntry]) -> Double {
-        // Look at last 5 minutes of actual usage
-        let fiveMinutesAgo = Date().addingTimeInterval(-300)
-        let recentEntries = entries.filter { $0.timestamp >= fiveMinutesAgo }
+        guard !entries.isEmpty else { return 0 }
+
+        // Look at last 30 seconds for real-time "current" rate
+        let thirtySecondsAgo = Date().addingTimeInterval(-30)
+        let recentEntries = entries.filter { $0.timestamp >= thirtySecondsAgo }
 
         guard !recentEntries.isEmpty else { return 0 }
 
-        // Sum all tokens in the last 5 minutes
+        // Sum all tokens in the last 30 seconds
         let totalTokens = recentEntries.reduce(0) { $0 + $1.totalTokens }
 
-        // Find actual time span
-        if let oldest = recentEntries.min(by: { $0.timestamp < $1.timestamp }),
-           let newest = recentEntries.max(by: { $0.timestamp < $1.timestamp }) {
-            let timeSpan = newest.timestamp.timeIntervalSince(oldest.timestamp) / 60.0 // minutes
+        guard totalTokens > 0 else { return 0 }
 
-            // If we have meaningful time span, calculate rate
-            if timeSpan > 0.1 { // At least 6 seconds
-                return Double(totalTokens) / timeSpan
-            }
+        // Calculate actual elapsed time from oldest entry to now
+        guard let oldest = recentEntries.min(by: { $0.timestamp < $1.timestamp }) else {
+            return 0
         }
 
-        // If less than 5 minutes of data, extrapolate
-        let actualTimeSpan = Date().timeIntervalSince(recentEntries[0].timestamp) / 60.0
-        return actualTimeSpan > 0 ? Double(totalTokens) / actualTimeSpan : 0
+        let elapsedMinutes = Date().timeIntervalSince(oldest.timestamp) / 60.0
+
+        // If we have at least 10 seconds of data, calculate rate
+        guard elapsedMinutes >= 0.16, elapsedMinutes.isFinite else {
+            return 0
+        }
+
+        let rate = Double(totalTokens) / elapsedMinutes
+
+        // Sanity check: cap at reasonable maximum (e.g., 100k tokens/min)
+        return min(rate, 100_000)
     }
 
     /// Legacy burn rate calculation for backward compatibility

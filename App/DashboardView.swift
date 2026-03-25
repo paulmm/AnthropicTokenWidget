@@ -62,8 +62,8 @@ struct DashboardView: View {
         HStack(spacing: 20) {
             // Left: Burn Rate Gauge
             BurnRateGauge(
-                burnRate: tokenMonitor.calculateBurnRate(over: 300),
-                safeRate: tokenMonitor.currentPrediction?.safeRate ?? 200
+                burnRate: tokenMonitor.realtimeBurnRate,
+                safeRate: Double(usage.maxTokens) / 300.0 * 0.8
             )
             .frame(height: 300)
 

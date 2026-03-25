@@ -1,6 +1,4 @@
 import Foundation
-import CoreML
-import CreateML
 
 public class PredictionEngine {
     private var usagePatterns: [UsagePattern] = []

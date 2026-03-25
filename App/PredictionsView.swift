@@ -271,12 +271,29 @@ struct UsageLevelIndicator: View {
 }
 
 struct DailyPatternChart: View {
+    @EnvironmentObject var tokenMonitor: TokenUsageMonitor
+
+    private var hourlyData: [(Int, Int)] {
+        let calendar = Calendar.current
+        var totals: [Int: Int] = [:]
+        var counts: [Int: Int] = [:]
+        for usage in tokenMonitor.usageHistory {
+            let hour = calendar.component(.hour, from: usage.timestamp)
+            totals[hour, default: 0] += usage.tokensUsed
+            counts[hour, default: 0] += 1
+        }
+        return (0..<24).map { hour in
+            let avg = counts[hour, default: 0] > 0 ? totals[hour, default: 0] / counts[hour]! : 0
+            return (hour, avg)
+        }
+    }
+
     var body: some View {
         Chart {
-            ForEach(0..<24, id: \.self) { hour in
+            ForEach(hourlyData, id: \.0) { hour, usage in
                 BarMark(
                     x: .value("Hour", hour),
-                    y: .value("Usage", Double.random(in: 1000...5000))
+                    y: .value("Usage", usage)
                 )
                 .foregroundStyle(Color.blue.gradient)
             }
@@ -287,14 +304,30 @@ struct DailyPatternChart: View {
 }
 
 struct WeeklyPatternChart: View {
-    let days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    
+    @EnvironmentObject var tokenMonitor: TokenUsageMonitor
+    let days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+    private var weeklyData: [(String, Int)] {
+        let calendar = Calendar.current
+        var totals: [Int: Int] = [:]
+        var counts: [Int: Int] = [:]
+        for usage in tokenMonitor.usageHistory {
+            let weekday = calendar.component(.weekday, from: usage.timestamp) // 1=Sun
+            totals[weekday, default: 0] += usage.tokensUsed
+            counts[weekday, default: 0] += 1
+        }
+        return (1...7).map { weekday in
+            let avg = counts[weekday, default: 0] > 0 ? totals[weekday, default: 0] / counts[weekday]! : 0
+            return (days[weekday - 1], avg)
+        }
+    }
+
     var body: some View {
         Chart {
-            ForEach(days, id: \.self) { day in
+            ForEach(weeklyData, id: \.0) { day, usage in
                 BarMark(
                     x: .value("Day", day),
-                    y: .value("Usage", Double.random(in: 10000...30000))
+                    y: .value("Usage", usage)
                 )
                 .foregroundStyle(Color.purple.gradient)
             }
@@ -304,12 +337,29 @@ struct WeeklyPatternChart: View {
 }
 
 struct MonthlyPatternChart: View {
+    @EnvironmentObject var tokenMonitor: TokenUsageMonitor
+
+    private var monthlyData: [(Int, Int)] {
+        let calendar = Calendar.current
+        var totals: [Int: Int] = [:]
+        var counts: [Int: Int] = [:]
+        for usage in tokenMonitor.usageHistory {
+            let day = calendar.component(.day, from: usage.timestamp)
+            totals[day, default: 0] += usage.tokensUsed
+            counts[day, default: 0] += 1
+        }
+        return (1...30).map { day in
+            let avg = counts[day, default: 0] > 0 ? totals[day, default: 0] / counts[day]! : 0
+            return (day, avg)
+        }
+    }
+
     var body: some View {
         Chart {
-            ForEach(1...30, id: \.self) { day in
+            ForEach(monthlyData, id: \.0) { day, usage in
                 LineMark(
                     x: .value("Day", day),
-                    y: .value("Usage", Double.random(in: 20000...50000))
+                    y: .value("Usage", usage)
                 )
                 .foregroundStyle(Color.green.gradient)
                 .interpolationMethod(.catmullRom)

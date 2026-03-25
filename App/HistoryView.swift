@@ -322,7 +322,7 @@ struct EmptyHistoryView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
             
-            Text("Start using the API to see your usage history here")
+            Text("Start using Claude Code to see your usage history here")
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }

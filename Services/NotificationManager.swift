@@ -101,7 +101,7 @@ public class NotificationManager: NSObject, ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "⚠️ Critical Token Usage"
         content.body = "URGENT: \(Int(usage.percentageUsed * 100))% used! Only \(usage.tokensRemaining) tokens left."
-        content.sound = UNNotificationSound(named: UNNotificationSoundName("critical.aiff"))
+        content.sound = .defaultCritical
         content.badge = NSNumber(value: Int(usage.percentageUsed * 100))
         content.categoryIdentifier = "USAGE_ALERT"
         content.interruptionLevel = .critical
@@ -166,7 +166,7 @@ public class NotificationManager: NSObject, ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "Token Window Reset"
         content.body = "Your 5-hour token window has reset. Full quota available again!"
-        content.sound = UNNotificationSound(named: UNNotificationSoundName("success.aiff"))
+        content.sound = .default
         content.badge = 0
         
         content.userInfo = ["type": "reset"]

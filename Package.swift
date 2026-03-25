@@ -34,7 +34,11 @@ let package = Package(
                 "README.md",
                 "Package.swift",
                 ".gitignore",
-                "open_in_xcode.sh"
+                "open_in_xcode.sh",
+                "DUAL_GAUGE_FEATURES.md",
+                "SETUP_INSTRUCTIONS.md",
+                "WIDGET_SETUP.md",
+                "screenshots"
             ],
             sources: [
                 "Models",

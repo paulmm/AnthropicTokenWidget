@@ -182,9 +182,9 @@ struct SettingsView: View {
                     Slider(value: $refreshInterval, in: 10...120, step: 5)
                         .onChange(of: refreshInterval) { _ in
                             // Restart monitoring with new interval
-                            Task {
-                                await tokenMonitor.stopMonitoring()
-                                await tokenMonitor.startMonitoring()
+                            Task { @MainActor in
+                                tokenMonitor.stopMonitoring()
+                                tokenMonitor.startMonitoring()
                             }
                         }
 
@@ -370,7 +370,7 @@ struct SettingsView: View {
 
                 Divider()
 
-                Link(destination: URL(string: "https://github.com/yourusername/AnthropicTokenWidget")!) {
+                Link(destination: URL(string: "https://github.com/paulmm/AnthropicTokenWidget")!) {
                     HStack {
                         Image(systemName: "book")
                             .frame(width: 24)
@@ -387,7 +387,7 @@ struct SettingsView: View {
 
                 Divider()
 
-                Link(destination: URL(string: "https://github.com/yourusername/AnthropicTokenWidget/issues")!) {
+                Link(destination: URL(string: "https://github.com/paulmm/AnthropicTokenWidget/issues")!) {
                     HStack {
                         Image(systemName: "exclamationmark.bubble")
                             .frame(width: 24)

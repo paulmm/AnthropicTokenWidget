@@ -5,32 +5,27 @@ public struct TachometerView: View {
     let usage: TokenUsage
     let size: WidgetFamily
     @State private var animatedPercentage: Double = 0
-    
+
     public init(usage: TokenUsage, size: WidgetFamily = .systemMedium) {
         self.usage = usage
         self.size = size
     }
-    
+
     public var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 12) {
-                Spacer()
-
-                ZStack {
-                    gaugeArc(geometry: geometry)
-                    needle(geometry: geometry)
-                    centerDisplay(geometry: geometry)
-                }
-                .frame(height: geometry.size.height * 0.7)
+            VStack(spacing: 0) {
+                gaugeSection(geometry: geometry)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if size != .systemSmall {
                     statsBar
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
                 }
-
-                Spacer()
             }
+            .padding(.top, 8)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .background(
             RoundedRectangle(cornerRadius: 20)
                 .fill(backgroundGradient)
@@ -68,23 +63,35 @@ public struct TachometerView: View {
         )
     }
 
-    private func gaugeArc(geometry: GeometryProxy) -> some View {
-        let width = min(geometry.size.width, geometry.size.height) * 0.8
-        let strokeWidth = width * 0.08
-        
+    private func gaugeSection(geometry: GeometryProxy) -> some View {
+        let availableHeight = size != .systemSmall
+            ? geometry.size.height - 50 // leave room for stats bar
+            : geometry.size.height - 16
+        let gaugeSize = min(geometry.size.width - 24, availableHeight) * 0.85
+
         return ZStack {
+            gaugeArc(gaugeSize: gaugeSize)
+            needle(gaugeSize: gaugeSize)
+            centerDisplay(gaugeSize: gaugeSize)
+        }
+        .frame(width: gaugeSize, height: gaugeSize)
+    }
+
+    private func gaugeArc(gaugeSize: CGFloat) -> some View {
+        let strokeWidth = gaugeSize * 0.07
+
+        return ZStack {
+            // Background arc
             Circle()
                 .trim(from: 0.125, to: 0.875)
                 .stroke(
                     Color.white.opacity(0.1),
-                    style: StrokeStyle(
-                        lineWidth: strokeWidth,
-                        lineCap: .round
-                    )
+                    style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
                 )
-                .frame(width: width, height: width)
+                .frame(width: gaugeSize * 0.75, height: gaugeSize * 0.75)
                 .rotationEffect(.degrees(90))
-            
+
+            // Colored arc
             Circle()
                 .trim(from: 0.125, to: 0.125 + (0.75 * animatedPercentage))
                 .stroke(
@@ -100,45 +107,43 @@ public struct TachometerView: View {
                         startAngle: .degrees(45),
                         endAngle: .degrees(315)
                     ),
-                    style: StrokeStyle(
-                        lineWidth: strokeWidth,
-                        lineCap: .round
-                    )
+                    style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
                 )
-                .frame(width: width, height: width)
+                .frame(width: gaugeSize * 0.75, height: gaugeSize * 0.75)
                 .rotationEffect(.degrees(90))
                 .shadow(color: currentColor.opacity(0.5), radius: strokeWidth / 2)
-            
-            tickMarks(width: width)
+
+            tickMarks(gaugeSize: gaugeSize)
         }
     }
-    
-    private func tickMarks(width: CGFloat) -> some View {
-        ZStack {
+
+    private func tickMarks(gaugeSize: CGFloat) -> some View {
+        let radius = gaugeSize * 0.375 // half of 0.75
+
+        return ZStack {
+            // Major tick marks (inside the arc)
             ForEach(0..<9) { index in
                 Rectangle()
                     .fill(Color.white.opacity(0.3))
-                    .frame(width: 2, height: width * 0.05)
-                    .offset(y: -width / 2 + width * 0.08)
+                    .frame(width: 1.5, height: gaugeSize * 0.04)
+                    .offset(y: -radius + gaugeSize * 0.06)
                     .rotationEffect(.degrees(Double(index) * 30 - 135))
             }
-            
+
+            // Labels (outside the arc, within bounding box)
             ForEach([0, 25, 50, 75, 100], id: \.self) { percentage in
-                VStack {
-                    Text("\(percentage)")
-                        .font(.system(size: width * 0.04, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.6))
-                }
-                .offset(y: -width / 2 - width * 0.12)
-                .rotationEffect(.degrees(Double(percentage) * 2.7 - 135))
+                Text("\(percentage)")
+                    .font(.system(size: gaugeSize * 0.04, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.5))
+                    .offset(y: -radius - gaugeSize * 0.06)
+                    .rotationEffect(.degrees(Double(percentage) * 2.7 - 135))
             }
         }
     }
-    
-    private func needle(geometry: GeometryProxy) -> some View {
-        let width = min(geometry.size.width, geometry.size.height) * 0.8
-        let needleLength = width * 0.35
-        
+
+    private func needle(gaugeSize: CGFloat) -> some View {
+        let needleLength = gaugeSize * 0.3
+
         return ZStack {
             Capsule()
                 .fill(LinearGradient(
@@ -146,37 +151,39 @@ public struct TachometerView: View {
                     startPoint: .top,
                     endPoint: .bottom
                 ))
-                .frame(width: 4, height: needleLength)
+                .frame(width: 3, height: needleLength)
                 .offset(y: -needleLength / 2)
                 .rotationEffect(.degrees(animatedPercentage * 270 - 135))
                 .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
-            
+
             Circle()
                 .fill(Color.white)
-                .frame(width: width * 0.06, height: width * 0.06)
+                .frame(width: gaugeSize * 0.05, height: gaugeSize * 0.05)
                 .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
         }
     }
-    
-    private func centerDisplay(geometry: GeometryProxy) -> some View {
-        let width = min(geometry.size.width, geometry.size.height) * 0.8
-        
-        return VStack(spacing: 4) {
+
+    private func centerDisplay(gaugeSize: CGFloat) -> some View {
+        VStack(spacing: 2) {
             Text("\(usage.tokensUsed)")
-                .font(.system(size: width * 0.12, weight: .bold, design: .rounded))
+                .font(.system(size: gaugeSize * 0.1, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
-            
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+
             Text("of \(usage.maxTokens)")
-                .font(.system(size: width * 0.05, weight: .medium, design: .rounded))
+                .font(.system(size: gaugeSize * 0.045, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.6))
-            
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+
             Text("tokens")
-                .font(.system(size: width * 0.04, weight: .regular, design: .rounded))
+                .font(.system(size: gaugeSize * 0.035, weight: .regular, design: .rounded))
                 .foregroundColor(.white.opacity(0.4))
         }
-        .offset(y: width * 0.15)
+        .offset(y: gaugeSize * 0.1)
     }
-    
+
     private var statsBar: some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
@@ -186,6 +193,8 @@ public struct TachometerView: View {
                 Text("\(usage.tokensUsed)")
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
                     .foregroundColor(currentColor)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -196,6 +205,8 @@ public struct TachometerView: View {
                 Text("\(usage.tokensRemaining)")
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity)
 
@@ -216,7 +227,7 @@ public struct TachometerView: View {
                 .fill(Color.white.opacity(0.03))
         )
     }
-    
+
     private var currentColor: Color {
         switch usage.percentageUsed {
         case 0..<0.60:
@@ -227,17 +238,12 @@ public struct TachometerView: View {
             return Color(hex: "#EF4444")
         }
     }
-    
-    private func calculateBurnRate() -> Double {
-        let elapsedTime = usage.timestamp.timeIntervalSince(usage.windowStart) / 60
-        return elapsedTime > 0 ? Double(usage.tokensUsed) / elapsedTime : 0
-    }
-    
+
     private func formatTimeRemaining() -> String {
         let timeRemaining = usage.timeUntilReset
         let hours = Int(timeRemaining) / 3600
         let minutes = Int(timeRemaining) % 3600 / 60
-        
+
         if hours > 0 {
             return "\(hours)h \(minutes)m"
         } else {
@@ -262,7 +268,7 @@ extension Color {
         default:
             (a, r, g, b) = (255, 0, 0, 0)
         }
-        
+
         self.init(
             .sRGB,
             red: Double(r) / 255,
@@ -272,6 +278,3 @@ extension Color {
         )
     }
 }
-
-// Widget previews removed - they don't work with SPM executable targets
-// To preview widgets, add them to Notification Center after running the app

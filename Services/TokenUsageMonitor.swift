@@ -13,10 +13,8 @@ public class TokenUsageMonitor: ObservableObject {
     @Published public var lastError: Error?
     @Published public var realtimeBurnRate: Double = 0 // Tokens per minute
 
-    private var apiService: AnthropicAPIServiceProtocol
     private let claudeDataService = ClaudeCodeDataService()
     private var refreshTimer: Timer?
-    private var refreshInterval: TimeInterval = 15 // Default: check for new data every 15 seconds
     private let predictionEngine = PredictionEngine()
 
     // Store raw entries for real-time burn rate calculation
@@ -33,7 +31,6 @@ public class TokenUsageMonitor: ObservableObject {
     }
 
     private init() {
-        self.apiService = MockAnthropicAPIService()
         loadHistoricalData()
     }
 
@@ -70,11 +67,6 @@ public class TokenUsageMonitor: ObservableObject {
 
         // Start monitoring for updates
         startMonitoring()
-    }
-    
-    public func configure(apiKey: String, refreshInterval: TimeInterval = 30) {
-        self.apiService = AnthropicAPIService(apiKey: apiKey)
-        self.refreshInterval = refreshInterval
     }
     
     public func startMonitoring() {
@@ -253,11 +245,6 @@ public class TokenUsageMonitor: ObservableObject {
         return min(rate, 100_000)
     }
 
-    /// Legacy burn rate calculation for backward compatibility
-    public func calculateBurnRate(over interval: TimeInterval = 300) -> Double {
-        return realtimeBurnRate
-    }
-    
     public func getUsageByTimeRange(_ range: GraphTimeRange) -> [TokenUsage] {
         let cutoff = Date().addingTimeInterval(-Double(range.hours * 3600))
         return usageHistory.filter { $0.timestamp > cutoff }

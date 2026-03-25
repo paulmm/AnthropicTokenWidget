@@ -162,7 +162,6 @@ public class ClaudeCodeDataService: ObservableObject {
             if !windowEntries.isEmpty {
                 let totalInput = windowEntries.reduce(0) { $0 + $1.inputTokens }
                 let totalOutput = windowEntries.reduce(0) { $0 + $1.outputTokens }
-                let totalCache = windowEntries.reduce(0) { $0 + $1.cacheCreationTokens + $1.cacheReadTokens }
                 let totalTokens = totalInput + totalOutput
 
                 // Determine the most used model in this window

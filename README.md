@@ -1,6 +1,6 @@
 # Anthropic Token Usage Widget for macOS
 
-A macOS widget that monitors your Anthropic API token usage with a tachometer-style gauge and burn rate tracking.
+Slide open your macOS Notification Center while using Claude Code, claude.ai, or any Anthropic-powered tool and instantly see how fast you're burning tokens, where you stand in your current 5-hour window, and your usage trends over the week.
 
 > **Coming soon to the App Store** -- currently awaiting iOS approval. In the meantime, you can build and run it yourself using the instructions below.
 
